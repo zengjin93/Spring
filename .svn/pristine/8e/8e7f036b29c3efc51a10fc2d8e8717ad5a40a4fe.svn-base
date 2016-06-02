@@ -1,0 +1,104 @@
+package com.controller;
+
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.util.Iterator;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.springframework.stereotype.Controller;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+@Controller
+@RequestMapping("/qiandu")
+public class QianDuController {
+    
+    @RequestMapping(value="/search",method=RequestMethod.GET)
+    public void search(HttpServletRequest request,HttpServletResponse sresponse) throws ClientProtocolException, IOException{
+        
+        String wd=request.getParameter("wd");
+        String pn=request.getParameter("pn");
+        
+        if(StringUtils.isEmpty(wd)){
+            sresponse.sendRedirect("http://localhost:8080/Spring");
+            return;
+        }
+        StringBuffer url=new StringBuffer();
+        url.append("http://www.baidu.com/s?wd="+wd.replace(" ", "%20"));
+        if(!StringUtils.isEmpty(pn)){
+            url.append("&pn="+pn);
+        }
+        
+        //request.setAttribute("key", key);
+        HttpClient httpclient=new DefaultHttpClient();
+        HttpGet httpget=new HttpGet(url.toString());
+        
+        HttpResponse response = httpclient.execute(httpget);
+        HttpEntity entity = response.getEntity();   
+        if (entity != null) {
+            
+            InputStream instreams = entity.getContent();    
+            String str = convertStreamToString(instreams);
+            Document doc = Jsoup.parse(str);
+            
+            doc.getElementById("form").attr("action", "/Spring/qiandu/search");
+            doc.getElementById("content_right").attr("style", "margin-top:65px;");
+            doc.getElementById("content_left").attr("style", "padding-top:20px;");
+            doc.getElementById("s_tab").remove();
+            Iterator<Element> iterator = doc.getElementById("rs").getElementsByTag("a").iterator();
+            while(iterator.hasNext()){
+                Element element = iterator.next();
+                element.attr("href", element.attr("href").replace("/s", ""));
+            }
+            iterator = doc.getElementById("page").getElementsByTag("a").iterator();
+            while(iterator.hasNext()){
+                Element element = iterator.next();
+                element.attr("href", element.attr("href").replace("/s", "/Spring/qiandu/search"));
+            }
+            sresponse.getWriter().print(doc);
+            httpget.abort();    
+        }
+
+    }
+    
+
+    
+    public static String convertStreamToString(InputStream is) throws UnsupportedEncodingException {      
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is,"UTF-8"));      
+        StringBuilder sb = new StringBuilder();      
+       
+        String line = null;      
+        try {      
+            while ((line = reader.readLine()) != null) {  
+                sb.append(line +"\n");      
+            }      
+        } catch (IOException e) {      
+            e.printStackTrace();      
+        } finally {      
+            try {      
+                is.close();      
+            } catch (IOException e) {      
+               e.printStackTrace();      
+            }      
+        }      
+        return sb.toString();      
+    }  
+
+    
+}
